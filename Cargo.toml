@@ -1,0 +1,21 @@
+[package]
+name = "unione-axum"
+version = "1.1.2"
+edition = "2021"
+rust-version = "1.75"
+description = "UniOne Web API for axum: API client from the environment, webhook endpoint"
+license = "MIT"
+repository = "https://github.com/unione-repo/unione-axum"
+documentation = "https://docs.unione.io/en/web-api-ref"
+readme = "README.md"
+keywords = ["unione", "axum", "email", "webhook"]
+categories = ["api-bindings", "email", "web-programming::http-server"]
+
+[lib]
+name = "unione_wrapper"
+
+[dependencies]
+unione-rust-sdk = "1.1.2"
+axum = { version = "0.7", default-features = false, features = ["tokio", "http1"] }
+md-5 = "0.10"
+serde_json = "1"

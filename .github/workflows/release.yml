@@ -1,0 +1,24 @@
+# Generated: publishes the package when a tag v* is pushed. Do not edit, the next release replaces it.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+      - name: The tag is the version of the package
+        run: test "$GITHUB_REF_NAME" = "v1.1.3" || { echo "tag $GITHUB_REF_NAME, package v1.1.3"; exit 1; }
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

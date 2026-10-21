@@ -1,10 +1,10 @@
-# UniOne axum 1.1.3
+# UniOne axum
 
-Web API 1.90
-
-Quickstart guide: [Send emails with Rust](https://docs.unione.io/en/send-with-rust) · Docs for LLMs: [llms.txt](https://docs.unione.io/llms.txt) · [API reference](https://docs.unione.io/en/web-api-ref)
+[![axum](https://img.shields.io/crates/v/unione-axum)](https://crates.io/crates/unione-axum) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 axum integration of the [UniOne Rust SDK](https://github.com/unione-repo/unione-rust-sdk) (`unione-rust-sdk`): the API client in the axum state / `Extension`, a webhook endpoint with signature check.
+
+[API reference](https://docs.unione.io/en/web-api-ref) · Docs for LLMs: [llms.txt](https://docs.unione.io/llms.txt)
 
 ## Install
 
@@ -14,22 +14,13 @@ cargo add unione-axum unione-rust-sdk
 
 Requirements: Rust 1.75+, axum 0.7, tokio.
 
-## Get an API key
+## Configuration
 
-1. Sign up at [cp.unione.io](https://cp.unione.io/en/user/registration/).
-2. Copy your API key from [Settings → Security → API](https://cp.unione.io/en/settings/security/api).
-3. Put it in an environment variable:
+Get an API key in the [control panel](https://cp.unione.io/en/settings/security/api) and keep it in the environment, never in code:
 
 ```bash
 export UNIONE_API_KEY="your-api-key"
 ```
-
-The package reads it from `UNIONE_API_KEY` (see the configuration below).
-
-> **Server-side only.** Use this package in backend code: API routes, server functions, workers.
-> Never ship the API key to a browser or a mobile app, and never commit it.
-
-## Configuration
 
 Settings are read from the environment by default:
 
@@ -37,6 +28,8 @@ Settings are read from the environment by default:
 UNIONE_API_KEY=YOUR_API_KEY
 UNIONE_HOST=us1.unione.io
 ```
+
+`us1.unione.io` in the example is for an account on another datacenter; without the host setting the package uses `api.unione.io`.
 
 | Option | Environment variable | Default | Description |
 |---|---|---|---|
@@ -47,126 +40,6 @@ UNIONE_HOST=us1.unione.io
 | `webhook_path` | `UNIONE_WEBHOOK_PATH` | `/unione/webhook` | Path of the webhook endpoint. |
 
 `Config::from_env()` reads the variables; the fields of `Config` can also be set in code.
-
-## Send your first email — no DNS setup
-
-Every account can send test email right away from a **sandbox domain**: pre-verified, DKIM and SPF already set.
-It delivers only to addresses you confirm.
-
-The examples use the API client of the package (see the configuration above).
-
-**1. Get your sandbox domain** (`domain/get-sandbox-domain`). The call creates the domain on first use and returns the same one afterwards.
-
-```rust
-use axum::Extension;
-use unione::UniOneClient;
-
-async fn send(Extension(client): Extension<UniOneClient>) -> Result<String, String> {
-    let response = client.domain().get_sandbox_domain().await.map_err(|e| e.to_string())?;
-    Ok(format!("{:?}", response.domain))
-}
-```
-
-**2. Confirm your inbox** (`confirmed-email/create`). UniOne sends a confirmation email; click the link in it within 48 hours.
-
-```rust
-use axum::Extension;
-use unione::UniOneClient;
-use unione::api::confirmed_email::model::ConfirmedEmailRequest;
-
-async fn send(Extension(client): Extension<UniOneClient>) -> Result<String, String> {
-    let response = client.confirmed_email().create(&ConfirmedEmailRequest {
-        email: "you@example.com".to_string(),
-    }).await.map_err(|e| e.to_string())?;
-    Ok(format!("{:?}", response.status))
-}
-```
-
-Check the status with `confirmed-email/list` — your address should show `"status": "confirmed"`.
-
-**3. Send the email** (`email/send`) from any address on the sandbox domain to the confirmed address.
-
-```rust
-use axum::Extension;
-use unione::UniOneClient;
-use unione::api::email::model::EmailSendRequest;
-use unione::api::email::model::MessageObject;
-use unione::api::email::model::MessageObjectRecipientsItem;
-use unione::common::model::BodyObject;
-
-async fn send(Extension(client): Extension<UniOneClient>) -> Result<String, String> {
-    let response = client.email().send(&EmailSendRequest {
-        message: MessageObject {
-            recipients: vec![
-                MessageObjectRecipientsItem {
-                    email: "you@example.com".to_string(),
-                    ..Default::default()
-                },
-            ],
-            body: BodyObject {
-                html: Some("<p>It works!</p>".to_string()),
-                ..Default::default()
-            },
-            subject: "Hello from UniOne".to_string(),
-            from_email: Some("noreply@<sandbox-domain>".to_string()),
-            ..Default::default()
-        },
-    }).await.map_err(|e| e.to_string())?;
-    Ok(format!("{:?}", response.job_id))
-}
-```
-
-### What you get back
-
-```json
-{
-  "status": "success",
-  "job_id": "1ZymBc-00041N-9X",
-  "emails": [
-    "you@example.com"
-  ]
-}
-```
-
-On error the API returns `status: "error"`, a `message` and a numeric `code`:
-
-```json
-{
-  "status": "error",
-  "code": 102,
-  "message": "Error ID:83274F98-C7D5-11F1-B221-6214FF8707B1. Can not decode key wrongkey"
-}
-```
-
-### Same flow with curl
-
-```bash
-BASE=https://api.unione.io/en/transactional/api/v1
-
-curl -s -X POST $BASE/domain/get-sandbox-domain.json \
-  -H "Content-Type: application/json" -H "X-API-KEY: $UNIONE_API_KEY" -d '{}'
-
-curl -s -X POST $BASE/confirmed-email/create.json \
-  -H "Content-Type: application/json" -H "X-API-KEY: $UNIONE_API_KEY" \
-  -d '{"email": "you@example.com"}'
-
-curl -s -X POST $BASE/email/send.json \
-  -H "Content-Type: application/json" -H "X-API-KEY: $UNIONE_API_KEY" \
-  -d '{
-        "message": {
-          "recipients": [
-            {
-              "email": "you@example.com"
-            }
-          ],
-          "from_email": "noreply@<sandbox-domain>",
-          "subject": "Hello from UniOne",
-          "body": {
-            "html": "<p>It works!</p>"
-          }
-        }
-      }'
-```
 
 ## Webhooks
 
@@ -199,6 +72,8 @@ let app = app.merge(webhook_router(&config, Events));
 
 Register the URL of the endpoint with `webhook/set`, e.g. `https://example.com/unione/webhook`.
 
+> **Answer 200 within 3 seconds** and process the events in the background (a queue): otherwise UniOne repeats the request every 10 minutes for 24 hours (`retry_count` grows), and a handler that failed every request for at least 10 events of a day is turned inactive. The handler must take at least **5 parallel requests of up to 100 events each**; deduplicate, a repeat delivers the same events again.
+
 ## API client
 
 Every section of the API is available on the client, see the [SDK docs](https://github.com/unione-repo/unione-rust-sdk).
@@ -221,48 +96,75 @@ let app = Router::new()
     .layer(Extension(config.client()));
 ```
 
-## Sending through the API
+### Sending through the API
 
 The client calls [email/send](https://docs.unione.io/en/web-api-ref#email-send) with all of its options: templates, substitutions, metadata, tracking. Fields of the request and other examples: [Rust SDK docs](https://github.com/unione-repo/unione-rust-sdk/blob/HEAD/docs/Email.md#send).
 
 ```rust
 use axum::Extension;
-use unione::UniOneClient;
-use std::collections::HashMap;
 use unione::api::email::model::EmailSendRequest;
 use unione::api::email::model::MessageObject;
-use unione::api::email::model::MessageObjectRecipientsItem;
+use unione::api::email::model::MessageObjectRecipientsItem as Recipient;
 use unione::common::model::BodyObject;
+use unione::UniOneClient;
+use unione_wrapper::HandlerError;
 
-async fn send(Extension(client): Extension<UniOneClient>) -> Result<String, String> {
-    let response = client.email().send(&EmailSendRequest {
-        message: MessageObject {
-            recipients: vec![
-                MessageObjectRecipientsItem {
-                    email: "user@example.com".to_string(),
-                    substitutions: Some(HashMap::from([
-                        ("CustomerId".to_string(), "12452".to_string()),
-                        ("to_name".to_string(), "John Smith".to_string()),
-                    ])),
-                    ..Default::default()
-                },
-            ],
-            body: BodyObject {
-                html: Some("<b>Hello, {{to_name}}</b>".to_string()),
-                plaintext: Some("Hello, {{to_name}}".to_string()),
-                ..Default::default()
-            },
-            subject: "UniOne test email ".to_string(),
-            from_email: Some("email@example.com".to_string()),
-            from_name: Some("John Smith".to_string()),
-            ..Default::default()
-        },
-    }).await.map_err(|e| e.to_string())?;
-    Ok(format!("{:?}", response.job_id))
+async fn send(Extension(client): Extension<UniOneClient>) -> Result<(), HandlerError> {
+    let message = MessageObject {
+        recipients: vec![Recipient::from_address("Alex <alex@example.com>", None)],
+        from_email: Some("shop@example.com".into()),
+        from_name: Some("Shop".into()),
+        subject: "Your order".into(),
+        body: BodyObject::html("<p>Hello, {{to_name}}! Your order has shipped.</p>"),
+        ..Default::default()
+    };
+    client.email().send(&EmailSendRequest { message }).await?;
+    Ok(())
 }
 ```
 
-## Sandbox limits
+## No domain yet: the test sandbox domain
+
+Until your domain is verified, send from the **sandbox domain**: a test domain every account has, already verified, with DKIM and SPF set. It delivers only to addresses you confirm (the confirmation link comes by email, valid 48 hours), up to 100 emails a day. The sandbox domain is deleted 31 days after it was created, but you can get it again: the next `domain/get-sandbox-domain` call creates a new one (with a new name, so read it from the call, do not hardcode it).
+
+The examples use the API client of the package (see the configuration above).
+
+```rust
+use axum::Extension;
+use unione::api::confirmed_email::model::ConfirmedEmailRequest;
+use unione::api::email::model::EmailSendRequest;
+use unione::api::email::model::MessageObject;
+use unione::api::email::model::MessageObjectRecipientsItem as Recipient;
+use unione::common::model::BodyObject;
+use unione::UniOneClient;
+use unione_wrapper::HandlerError;
+
+async fn try_sandbox(Extension(client): Extension<UniOneClient>) -> Result<(), HandlerError> {
+    // 1. Your sandbox domain: created on the first call, the same one afterwards
+    let sandbox = client.domain().get_sandbox_domain().await?;
+    let domain = sandbox.domain.unwrap_or_default();
+
+    // 2. Confirm your inbox: UniOne sends a link, click it within 48 hours
+    let confirm = ConfirmedEmailRequest {
+        email: "you@example.com".into(),
+    };
+    client.confirmed_email().create(&confirm).await?;
+
+    // 3. Send from any address on the sandbox domain to the confirmed one
+    let message = MessageObject {
+        recipients: vec![Recipient::from_address("you@example.com", None)],
+        from_email: Some(format!("noreply@{domain}")),
+        subject: "Hello from UniOne".into(),
+        body: BodyObject::html("<p>It works!</p>"),
+        ..Default::default()
+    };
+    client.email().send(&EmailSendRequest { message }).await?;
+    Ok(())
+}
+```
+
+<details>
+<summary>Sandbox limits</summary>
 
 - Sends only to confirmed addresses: up to 10 per account.
 - Up to 100 emails a day.
@@ -272,39 +174,68 @@ async fn send(Extension(client): Extension<UniOneClient>) -> Result<String, Stri
 
 The sandbox is for development and testing. Do not use a sandbox domain as the sender in production.
 
-## Before production: verify your domain
+</details>
 
-1. `domain/get-dns-records` — returns the values for your DNS records.
-2. Add these records at your DNS provider (the domain page of the control panel shows them too):
+<details>
+<summary>The same with curl</summary>
 
-   | Type | Host | Value |
-   |---|---|---|
-   | TXT | `@` | the `verification-record` value (`unione-validate-hash=…`) |
-   | TXT | `<selector>._domainkey` (the selector is on the domain page of the control panel, e.g. `us`) | `v=DKIM1; k=rsa; p=<dkim>` |
-   | TXT | `@` | `v=spf1 include:spf.unione.io ~all` |
-   | CNAME | `_dmarc` | the `dmarc` value |
+```bash
+BASE=https://api.unione.io/en/transactional/api/v1
 
-3. `domain/validate-verification-record`, then `domain/validate-dkim`.
-4. `domain/list` — wait until the verification record is confirmed and DKIM is active.
-5. Read `from_email` from your config, so switching from the sandbox needs no code change.
+curl -s -X POST $BASE/domain/get-sandbox-domain.json \
+  -H "Content-Type: application/json" -H "X-API-KEY: $UNIONE_API_KEY" -d '{}'
 
-## Sending reliably
+curl -s -X POST $BASE/confirmed-email/create.json \
+  -H "Content-Type: application/json" -H "X-API-KEY: $UNIONE_API_KEY" \
+  -d '{"email": "you@example.com"}'
 
-- **Retries:** set `message.idempotence_key` on sends that may be retried, so a repeated request does not send twice.
-- **Limits:** up to 500 recipients and 10 MB per request; each attachment up to 7 MB.
-- **Body:** always include `body.html` or `body.plaintext`.
-- **Delivery status:** register a webhook (`webhook/set`) with a fast, idempotent HTTPS handler instead of polling.
-- **Defaults:** keep the default unsubscribe footer and tracking; changing them requires UniOne support.
-- **Errors:** retry `429` and `5xx` with backoff; do not retry other errors unchanged.
+curl -s -X POST $BASE/email/send.json \
+  -H "Content-Type: application/json" -H "X-API-KEY: $UNIONE_API_KEY" \
+  -d '{
+        "message": {
+          "recipients": [
+            {
+              "email": "you@example.com"
+            }
+          ],
+          "from_email": "noreply@<sandbox-domain>",
+          "subject": "Hello from UniOne",
+          "body": {
+            "html": "<p>It works!</p>"
+          }
+        }
+      }'
+```
 
-## Links
+</details>
 
-- [Send emails with Rust](https://docs.unione.io/en/send-with-rust) and other [integration guides](https://docs.unione.io/en/integrations/)
-- [Web API reference](https://docs.unione.io/en/web-api-ref)
-- [llms.txt](https://docs.unione.io/llms.txt) for AI coding agents
-- [UniOne MCP server and agent setup](https://unione.io/en/agents)
-- [Support](https://cp.unione.io/en/support)
+## Going to production
 
-## For package contributors
+**1. Verify your sending domain.** `domain/get-dns-records` returns the verification record, the DKIM key and the DMARC target; add the records at your DNS provider, then `domain/validate-verification-record` and `domain/validate-dkim`.
 
-See [AGENTS.md](AGENTS.md): how this package is generated from the OpenAPI spec, built, tested and released.
+| Type | Host | Value | Where it comes from |
+|---|---|---|---|
+| TXT | `@` | `unione-validate-hash=…` | `verification-record` of the response, as is |
+| TXT | `<selector>._domainkey` (the selector is on the domain page of the control panel, e.g. `us`) | `v=DKIM1; k=rsa; p=<dkim>` | `dkim` of the response after `v=DKIM1; k=rsa; p=` |
+| TXT | `@` | `v=spf1 include:spf.unione.io ~all` | not in the response; add the include to your SPF record if you have one |
+| CNAME | `_dmarc` | `<domain>.dmarc.…` | `dmarc` of the response (UniOne publishes the DMARC policy); keep your own DMARC TXT record instead if the domain has one |
+
+**2. Make sending reliable.**
+
+| | |
+|---|---|
+| Retries | `429` and `5xx` with backoff and the same `idempotence_key`; fix other errors instead of retrying |
+| Limits | 500 recipients and 10 MB per request, attachments included: base64 makes a file about a third larger |
+| Body | always `html` or `plaintext` (a template can supply it) |
+| Delivery status | a webhook, not polling |
+| Queue | send from a background job, not inside the web request |
+| Config | `from_email` from config, so the sandbox → production switch needs no code change |
+| Defaults | keep the unsubscribe footer and tracking; changing them needs UniOne support |
+
+## Help
+
+- [Integration guides](https://docs.unione.io/en/integrations)
+- [Rust SDK](https://github.com/unione-repo/unione-rust-sdk)
+- AI coding agents: [llms.txt](https://docs.unione.io/llms.txt), the [MCP server](https://unione.io/en/agents), skills: `npx skills add https://github.com/unione-repo/unione-skills.git`
+- [Support](https://cp.unione.io/en/support) · [Issues](https://github.com/unione-repo/unione-axum/issues)
+- Contributing: [AGENTS.md](AGENTS.md) — the package is generated from the OpenAPI spec.

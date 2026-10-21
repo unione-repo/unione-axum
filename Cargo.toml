@@ -1,6 +1,6 @@
 [package]
 name = "unione-axum"
-version = "1.1.3"
+version = "1.2.3"
 edition = "2021"
 rust-version = "1.75"
 description = "UniOne Web API for axum: API client from the environment, webhook endpoint"
@@ -15,7 +15,7 @@ categories = ["api-bindings", "email", "web-programming::http-server"]
 name = "unione_wrapper"
 
 [dependencies]
-unione-rust-sdk = "1.1.3"
+unione-rust-sdk = "1.2.3"
 axum = { version = "0.7", default-features = false, features = ["tokio", "http1"] }
 md-5 = "0.10"
 serde_json = "1"

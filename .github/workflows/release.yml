@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: The tag is the version of the package
-        run: test "$GITHUB_REF_NAME" = "v1.2.3" || { echo "tag $GITHUB_REF_NAME, package v1.2.3"; exit 1; }
+        run: test "$GITHUB_REF_NAME" = "v1.2.4" || { echo "tag $GITHUB_REF_NAME, package v1.2.4"; exit 1; }
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
       - run: cargo publish

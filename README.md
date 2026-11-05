@@ -123,6 +123,10 @@ async fn send(Extension(client): Extension<UniOneClient>) -> Result<(), HandlerE
 }
 ```
 
+### Errors
+
+The API client returns the SDK `ApiError`: `kind` tells what failed (api, network, timeout, invalid_response, invalid_request), `retryable()` whether a repeat may succeed (network, timeout, HTTP 429 and 5xx), `hint` how to fix an API error and `api_message` the message of the API. A handler returning `Result<_, HandlerError>` answers an error of `?`: 500 for `ErrorKind::InvalidRequest`, 504 for `ErrorKind::Timeout`, 502 for the others, with the generic body "email sending failed"; the error itself goes to stderr, not to the client.
+
 ## No domain yet: the test sandbox domain
 
 Until your domain is verified, send from the **sandbox domain**: a test domain every account has, already verified, with DKIM and SPF set. It delivers only to addresses you confirm (the confirmation link comes by email, valid 48 hours), up to 100 emails a day. The sandbox domain is deleted 31 days after it was created, but you can get it again: the next `domain/get-sandbox-domain` call creates a new one (with a new name, so read it from the call, do not hardcode it).

@@ -31,10 +31,10 @@ use unione::api::webhook::model::{
 };
 use unione::api::webhook::WebhookApi;
 use unione::client::base_url_for;
-use unione::{Configuration, UniOneClient};
+use unione::{ApiError, Configuration, ErrorKind, UniOneClient};
 
 /// The crate and its version in the "platform" query parameter of the requests, before the SDK one.
-pub const PLATFORM: &str = "axum.1.2.4";
+pub const PLATFORM: &str = "axum.1.3.0";
 
 /// Environment variable of the API key.
 pub const ENV_API_KEY: &str = "UNIONE_API_KEY";
@@ -54,8 +54,10 @@ pub const MAX_WEBHOOK_BODY: usize = 16 << 20;
 /// Error of a webhook handler: the endpoint answers 500, so the API repeats the notification later.
 pub type BoxError = Box<dyn Error + Send + Sync>;
 
-/// Error of an axum handler that calls the API: `?` turns any error (of the client, of I/O...) into it, and
-/// it answers 502 Bad Gateway with the message of the error.
+/// Error of an axum handler that calls the API: `?` turns any error (of the client, of I/O...) into it. It answers
+/// by the kind of the error of the client (`ApiError::kind`): 500 for `ErrorKind::InvalidRequest` (a bug of the
+/// request), 504 Gateway Timeout for `ErrorKind::Timeout`, 502 Bad Gateway for the others, with the generic body
+/// "email sending failed"; the whole error (it may have the API response) only goes to stderr.
 ///
 /// ```no_run
 /// use axum::Extension;
@@ -81,7 +83,13 @@ where
 
 impl IntoResponse for HandlerError {
     fn into_response(self) -> Response {
-        (StatusCode::BAD_GATEWAY, self.0.to_string()).into_response()
+        let status = match self.0.downcast_ref::<ApiError>().map(|e| e.kind) {
+            Some(ErrorKind::InvalidRequest) => StatusCode::INTERNAL_SERVER_ERROR,
+            Some(ErrorKind::Timeout) => StatusCode::GATEWAY_TIMEOUT,
+            _ => StatusCode::BAD_GATEWAY,
+        };
+        eprintln!("{PLATFORM}: {}", self.0);
+        (status, "email sending failed").into_response()
     }
 }
 

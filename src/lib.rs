@@ -34,7 +34,7 @@ use unione::client::base_url_for;
 use unione::{ApiError, Configuration, ErrorKind, UniOneClient};
 
 /// The crate and its version in the "platform" query parameter of the requests, before the SDK one.
-pub const PLATFORM: &str = "axum.1.3.0";
+pub const PLATFORM: &str = "axum.1.3.1";
 
 /// Environment variable of the API key.
 pub const ENV_API_KEY: &str = "UNIONE_API_KEY";

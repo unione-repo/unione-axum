@@ -14,7 +14,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    timeout-minutes: 140
     strategy:
       fail-fast: false
       matrix:
@@ -34,5 +34,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.v }}
+      - name: Install the dependencies (the mirrors of the registry may serve the SDK some minutes later)
+        timeout-minutes: 25
+        run: |
+          for i in $(seq 1 40); do
+            if ( cargo fetch ); then exit 0; fi
+            echo "the dependencies can not be installed yet ($i/40)"; sleep 30
+          done
+          echo "::error::the dependencies (the SDK) can not be installed in 20 min"; exit 1
       - run: |
           cargo test

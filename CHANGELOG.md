@@ -2,7 +2,7 @@
 
 All notable changes of this package. Versions follow [Semantic Versioning](https://semver.org/).
 
-## [1.3.1](https://github.com/unione-repo/unione-axum/releases/tag/v1.3.1) - 2026-11-05
+## [1.3.2](https://github.com/unione-repo/unione-axum/releases/tag/v1.3.2) - 2026-11-05
 
 ### Changed
 
